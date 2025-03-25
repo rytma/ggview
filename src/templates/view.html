@@ -29,6 +29,20 @@
                 <button id="statsBtn" class="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm">
                     View Stats
                 </button>
+                <div class="relative inline-block text-left">
+                    <button id="downloadBtn" class="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm">
+                        Download
+                    </button>
+                    <div id="downloadMenu" class="hidden absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                        <div class="py-1" role="menu" aria-orientation="vertical">
+                            <a href="#" id="downloadJSON" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Download JSON</a>
+                            <a href="#" id="downloadCSV" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Download CSV</a>
+                        </div>
+                    </div>
+                </div>
+                <a href="/edit/{{ graph_id }}" class="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm inline-block">
+                    Edit
+                </a>
                 <a href="/graphs" class="px-3 py-1.5 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm inline-block">
                     Back to List
                 </a>
@@ -121,6 +135,7 @@
     <script>
         // Graph ID from template
         const GRAPH_ID = {{ graph_id }};
+        let graphData = null;
 
         // Fetch graph data on page load
         document.addEventListener('DOMContentLoaded', async function() {
@@ -129,7 +144,7 @@
                 if (!response.ok) throw new Error("Failed to fetch graph data");
 
                 const graph = await response.json();
-                const graphData = JSON.parse(graph.data);
+                graphData = JSON.parse(graph.data);
 
                 // Initialize the graph visualizer
                 initGraphVisualizer(graphData);
@@ -215,6 +230,71 @@
         document.getElementById('closeSearchBtn').addEventListener('click', function() {
             document.getElementById('searchPanel').classList.add('hidden');
         });
+
+        // Download dropdown functionality
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            document.getElementById('downloadMenu').classList.toggle('hidden');
+        });
+
+        // Close the download menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('#downloadBtn') && !event.target.closest('#downloadMenu')) {
+                document.getElementById('downloadMenu').classList.add('hidden');
+            }
+        });
+
+        // Download as JSON
+        document.getElementById('downloadJSON').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!graphData) return;
+
+            const fileName = `graph_${GRAPH_ID}.json`;
+            const jsonString = JSON.stringify(graphData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            downloadBlob(blob, fileName);
+        });
+
+        // Download as CSV
+        document.getElementById('downloadCSV').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!graphData) return;
+
+            const fileName = `graph_${GRAPH_ID}.csv`;
+            const csvContent = convertGraphToCSV(graphData);
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            downloadBlob(blob, fileName);
+        });
+
+        // Helper function to download a blob
+        function downloadBlob(blob, fileName) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Convert graph data to CSV format
+        function convertGraphToCSV(graphData) {
+            let csvRows = [];
+
+            // Header row
+            csvRows.push('source,target,relation,source_label,target_label');
+
+            // Prepare node lookup for labels
+            const nodes = graphData.graph.nodes;
+
+            // Add edge rows
+            graphData.graph.edges.forEach(edge => {
+                const sourceLabel = nodes[edge.source]?.label || edge.source;
+                const targetLabel = nodes[edge.target]?.label || edge.target;
+
+                csvRows.push(`${edge.source},${edge.target},${edge.relation || 'relates_to'},${sourceLabel},${targetLabel}`);
+            });
+
+            return csvRows.join('\n');
+        }
     </script>
 
     <!-- Load the graph visualizer -->

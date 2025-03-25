@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Graph - {{ graph_name }}</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="text-xl font-bold">Graph Viz Framework</div>
+                <div class="space-x-4">
+                    <a href="/" class="hover:underline">Home</a>
+                    <a href="/graphs" class="hover:underline">Graphs</a>
+                    <a href="/upload" class="hover:underline">Upload</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Edit Graph: {{ graph_name }}</h1>
+            <div class="space-x-2">
+                <a href="/view/{{ graph_id }}" class="px-3 py-1.5 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 text-sm inline-block">
+                    View Graph
+                </a>
+                <a href="/graphs" class="px-3 py-1.5 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm inline-block">
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Graph Details Form -->
+            <div class="lg:col-span-4">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-lg font-semibold mb-4">Graph Details</h2>
+                    <form id="graphDetailsForm" class="space-y-4">
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                            <input type="text" id="name" name="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border">
+                        </div>
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea id="description" name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"></textarea>
+                        </div>
+                        <div class="pt-4">
+                            <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <h2 class="text-lg font-semibold mb-4">Node Operations</h2>
+                    <form id="nodeForm" class="space-y-4">
+                        <div>
+                            <label for="nodeId" class="block text-sm font-medium text-gray-700">Node ID</label>
+                            <input type="text" id="nodeId" name="nodeId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border">
+                        </div>
+                        <div>
+                            <label for="nodeLabel" class="block text-sm font-medium text-gray-700">Node Label</label>
+                            <input type="text" id="nodeLabel" name="nodeLabel" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border">
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="button" id="addNodeBtn" class="flex-1 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Add Node
+                            </button>
+                            <button type="button" id="updateNodeBtn" class="flex-1 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                Update
+                            </button>
+                            <button type="button" id="deleteNodeBtn" class="flex-1 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                Delete
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <h2 class="text-lg font-semibold mb-4">Edge Operations</h2>
+                    <form id="edgeForm" class="space-y-4">
+                        <div>
+                            <label for="edgeSource" class="block text-sm font-medium text-gray-700">Source Node</label>
+                            <select id="edgeSource" name="edgeSource" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border">
+                                <option value="">Select source node</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="edgeTarget" class="block text-sm font-medium text-gray-700">Target Node</label>
+                            <select id="edgeTarget" name="edgeTarget" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border">
+                                <option value="">Select target node</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="edgeRelation" class="block text-sm font-medium text-gray-700">Relation</label>
+                            <input type="text" id="edgeRelation" name="edgeRelation" value="relates_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border">
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="button" id="addEdgeBtn" class="flex-1 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Add Edge
+                            </button>
+                            <button type="button" id="deleteEdgeBtn" class="flex-1 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                Delete
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Graph Visualization and Data -->
+            <div class="lg:col-span-8">
+                <div class="bg-white rounded-lg shadow-md" style="width: 100%; height: 50vh;">
+                    <div id="graph-container" style="width: 100%; height: 100%;"></div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Graph Data</h2>
+                        <button id="saveJsonBtn" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">
+                            Apply Changes
+                        </button>
+                    </div>
+                    <div class="border border-gray-300 rounded-md overflow-hidden">
+                        <div class="flex border-b border-gray-300">
+                            <button id="nodesTabBtn" class="flex-1 py-2 px-4 font-medium text-center text-indigo-600 bg-indigo-50">Nodes</button>
+                            <button id="edgesTabBtn" class="flex-1 py-2 px-4 font-medium text-center text-gray-600">Edges</button>
+                            <button id="jsonTabBtn" class="flex-1 py-2 px-4 font-medium text-center text-gray-600">JSON</button>
+                        </div>
+                        <div id="nodesTab" class="p-4 max-h-60 overflow-y-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="nodesTableBody" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                        <div id="edgesTab" class="p-4 max-h-60 overflow-y-auto hidden">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relation</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="edgesTableBody" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                        <div id="jsonTab" class="p-4 max-h-60 overflow-y-auto hidden">
+                            <textarea id="jsonEditor" class="w-full h-40 font-mono text-sm p-2 border border-gray-300 rounded" spellcheck="false"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success/Error toast -->
+        <div id="toast" class="fixed bottom-4 right-4 px-4 py-2 rounded-md text-white font-medium hidden"></div>
+    </main>
+
+    <script>
+        // Graph ID from template
+        const GRAPH_ID = {{ graph_id }};
+        let graphData = null;
+        let originalGraphData = null;
+
+        // DOM elements
+        const nodesTabBtn = document.getElementById('nodesTabBtn');
+        const edgesTabBtn = document.getElementById('edgesTabBtn');
+        const jsonTabBtn = document.getElementById('jsonTabBtn');
+        const nodesTab = document.getElementById('nodesTab');
+        const edgesTab = document.getElementById('edgesTab');
+        const jsonTab = document.getElementById('jsonTab');
+
+        // Fetch graph data on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch(`/api/graph/${GRAPH_ID}`);
+                if (!response.ok) throw new Error("Failed to fetch graph data");
+
+                const graph = await response.json();
+                graphData = JSON.parse(graph.data);
+                originalGraphData = JSON.parse(JSON.stringify(graphData)); // Deep copy for comparing changes
+
+                // Initialize form with current data
+                document.getElementById('name').value = graph.name;
+                document.getElementById('description').value = graph.description || '';
+
+                // Initialize the graph visualizer
+                initGraphVisualizer(graphData);
+
+                // Load data into tables
+                updateNodeAndEdgeTables();
+                updateNodeSelects();
+
+                // Load data into JSON editor
+                document.getElementById('jsonEditor').value = JSON.stringify(graphData, null, 2);
+
+            } catch (error) {
+                console.error("Error:", error);
+                showToast("Failed to load graph data", true);
+            }
+        });
+
+        // Functions to update the UI
+        function updateNodeAndEdgeTables() {
+            // Update nodes table
+            const nodesTableBody = document.getElementById('nodesTableBody');
+            nodesTableBody.innerHTML = '';
+
+            for (const [nodeId, nodeData] of Object.entries(graphData.graph.nodes)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">${nodeId}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">${nodeData.label}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                        <button class="edit-node-btn px-2 py-1 text-xs text-blue-600 hover:text-blue-800" data-id="${nodeId}">Edit</button>
+                        <button class="delete-node-btn px-2 py-1 text-xs text-red-600 hover:text-red-800" data-id="${nodeId}">Delete</button>
+                    </td>
+                `;
+                nodesTableBody.appendChild(row);
+            }
+
+            // Add event listeners to node edit/delete buttons
+            document.querySelectorAll('.edit-node-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const nodeId = this.dataset.id;
+                    const nodeData = graphData.graph.nodes[nodeId];
+
+                    document.getElementById('nodeId').value = nodeId;
+                    document.getElementById('nodeLabel').value = nodeData.label;
+                });
+            });
+
+            document.querySelectorAll('.delete-node-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const nodeId = this.dataset.id;
+                    if (confirm(`Are you sure you want to delete node ${nodeId}?`)) {
+                        deleteNode(nodeId);
+                    }
+                });
+            });
+
+            // Update edges table
+            const edgesTableBody = document.getElementById('edgesTableBody');
+            edgesTableBody.innerHTML = '';
+
+            graphData.graph.edges.forEach((edge, index) => {
+                const row = document.createElement('tr');
+                const sourceLabel = graphData.graph.nodes[edge.source]?.label || edge.source;
+                const targetLabel = graphData.graph.nodes[edge.target]?.label || edge.target;
+
+                row.innerHTML = `
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900" title="${edge.source}">${sourceLabel}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900" title="${edge.target}">${targetLabel}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">${edge.relation || 'relates_to'}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                        <button class="delete-edge-btn px-2 py-1 text-xs text-red-600 hover:text-red-800" data-index="${index}">Delete</button>
+                    </td>
+                `;
+                edgesTableBody.appendChild(row);
+            });
+
+            // Add event listeners to edge delete buttons
+            document.querySelectorAll('.delete-edge-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    if (confirm('Are you sure you want to delete this edge?')) {
+                        deleteEdge(index);
+                    }
+                });
+            });
+        }
+
+        function updateNodeSelects() {
+            const sourceSelect = document.getElementById('edgeSource');
+            const targetSelect = document.getElementById('edgeTarget');
+
+            // Clear current options
+            sourceSelect.innerHTML = '<option value="">Select source node</option>';
+            targetSelect.innerHTML = '<option value="">Select target node</option>';
+
+            // Add options for each node
+            for (const [nodeId, nodeData] of Object.entries(graphData.graph.nodes)) {
+                const sourceOption = document.createElement('option');
+                sourceOption.value = nodeId;
+                sourceOption.textContent = `${nodeId} (${nodeData.label})`;
+                sourceSelect.appendChild(sourceOption);
+
+                const targetOption = document.createElement('option');
+                targetOption.value = nodeId;
+                targetOption.textContent = `${nodeId} (${nodeData.label})`;
+                targetSelect.appendChild(targetOption);
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('hidden', 'bg-green-600', 'bg-red-600');
+            toast.classList.add(isError ? 'bg-red-600' : 'bg-green-600');
+
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Node operations
+        document.getElementById('addNodeBtn').addEventListener('click', function() {
+            const nodeId = document.getElementById('nodeId').value.trim();
+            const nodeLabel = document.getElementById('nodeLabel').value.trim();
+
+            if (!nodeId) {
+                showToast("Node ID is required", true);
+                return;
+            }
+
+            if (graphData.graph.nodes[nodeId]) {
+                showToast("Node ID already exists", true);
+                return;
+            }
+
+            // Add new node
+            graphData.graph.nodes[nodeId] = {
+                label: nodeLabel || nodeId,
+                metadata: {}
+            };
+
+            // Update UI
+            updateNodeAndEdgeTables();
+            updateNodeSelects();
+            // Update visualizer
+            initGraphVisualizer(graphData);
+
+            // Clear form
+            document.getElementById('nodeId').value = '';
+            document.getElementById('nodeLabel').value = '';
+
+            showToast("Node added successfully");
+        });
+
+        document.getElementById('updateNodeBtn').addEventListener('click', function() {
+            const nodeId = document.getElementById('nodeId').value.trim();
+            const nodeLabel = document.getElementById('nodeLabel').value.trim();
+
+            if (!nodeId || !graphData.graph.nodes[nodeId]) {
+                showToast("Invalid node ID", true);
+                return;
+            }
+
+            // Update node
+            graphData.graph.nodes[nodeId].label = nodeLabel || nodeId;
+
+            // Update UI
+            updateNodeAndEdgeTables();
+            // Update visualizer
+            initGraphVisualizer(graphData);
+
+            showToast("Node updated successfully");
+        });
+
+        document.getElementById('deleteNodeBtn').addEventListener('click', function() {
+            const nodeId = document.getElementById('nodeId').value.trim();
+
+            if (!nodeId || !graphData.graph.nodes[nodeId]) {
+                showToast("Invalid node ID", true);
+                return;
+            }
+
+            if (confirm(`Are you sure you want to delete node ${nodeId}?`)) {
+                deleteNode(nodeId);
+            }
+        });
+
+        function deleteNode(nodeId) {
+            // Delete node
+            delete graphData.graph.nodes[nodeId];
+
+            // Delete associated edges
+            graphData.graph.edges = graphData.graph.edges.filter(edge =>
+                edge.source !== nodeId && edge.target !== nodeId
+            );
+
+            // Update UI
+            updateNodeAndEdgeTables();
+            updateNodeSelects();
+            // Update visualizer
+            initGraphVisualizer(graphData);
+
+            // Clear form if deleting currently selected node
+            if (document.getElementById('nodeId').value === nodeId) {
+                document.getElementById('nodeId').value = '';
+                document.getElementById('nodeLabel').value = '';
+            }
+
+            showToast("Node deleted successfully");
+        }
+
+        // Edge operations
+        document.getElementById('addEdgeBtn').addEventListener('click', function() {
+            const source = document.getElementById('edgeSource').value;
+            const target = document.getElementById('edgeTarget').value;
+            const relation = document.getElementById('edgeRelation').value.trim() || 'relates_to';
+
+            if (!source || !target) {
+                showToast("Source and target nodes are required", true);
+                return;
+            }
+
+            // Check if edge already exists
+            const edgeExists = graphData.graph.edges.some(edge =>
+                edge.source === source && edge.target === target
+            );
+
+            if (edgeExists) {
+                showToast("Edge already exists", true);
+                return;
+            }
+
+            // Add new edge
+            graphData.graph.edges.push({
+                source,
+                target,
+                relation
+            });
+
+            // Update UI
+            updateNodeAndEdgeTables();
+            // Update visualizer
+            initGraphVisualizer(graphData);
+
+            showToast("Edge added successfully");
+        });
+
+        document.getElementById('deleteEdgeBtn').addEventListener('click', function() {
+            const source = document.getElementById('edgeSource').value;
+            const target = document.getElementById('edgeTarget').value;
+
+            if (!source || !target) {
+                showToast("Source and target nodes are required", true);
+                return;
+            }
+
+            // Find edge index
+            const edgeIndex = graphData.graph.edges.findIndex(edge =>
+                edge.source === source && edge.target === target
+            );
+
+            if (edgeIndex === -1) {
+                showToast("Edge does not exist", true);
+                return;
+            }
+
+            if (confirm('Are you sure you want to delete this edge?')) {
+                deleteEdge(edgeIndex);
+            }
+        });
+
+        function deleteEdge(index) {
+            // Delete edge
+            graphData.graph.edges.splice(index, 1);
+
+            // Update UI
+            updateNodeAndEdgeTables();
+            // Update visualizer
+            initGraphVisualizer(graphData);
+
+            showToast("Edge deleted successfully");
+        }
+
+        // JSON editor
+        document.getElementById('saveJsonBtn').addEventListener('click', function() {
+            try {
+                if (document.getElementById('jsonTab').classList.contains('hidden')) {
+                    // Just save current graphData object
+                    saveGraphChanges();
+                } else {
+                    // Parse from JSON editor
+                    const jsonText = document.getElementById('jsonEditor').value;
+                    const parsedData = JSON.parse(jsonText);
+
+                    // Validate basic structure
+                    if (!parsedData.graph || !parsedData.graph.nodes || !parsedData.graph.edges) {
+                        throw new Error("Invalid graph structure");
+                    }
+
+                    graphData = parsedData;
+
+                    // Update UI
+                    updateNodeAndEdgeTables();
+                    updateNodeSelects();
+                    // Update visualizer
+                    initGraphVisualizer(graphData);
+
+                    saveGraphChanges();
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                showToast("Invalid JSON: " + error.message, true);
+            }
+        });
+
+        // Save graph details form
+        document.getElementById('graphDetailsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveGraphChanges();
+        });
+
+        async function saveGraphChanges() {
+            try {
+                const name = document.getElementById('name').value.trim();
+                const description = document.getElementById('description').value.trim();
+
+                if (!name) {
+                    showToast("Graph name is required", true);
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('description', description);
+                formData.append('data', JSON.stringify(graphData));
+
+                const response = await fetch(`/api/graph/${GRAPH_ID}/update`, {
+                    method: 'PUT',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || "Failed to update graph");
+                }
+
+                originalGraphData = JSON.parse(JSON.stringify(graphData)); // Update original data
+                showToast("Graph updated successfully");
+
+            } catch (error) {
+                console.error("Error:", error);
+                showToast("Error: " + error.message, true);
+            }
+        }
+
+        // Tab switching
+        nodesTabBtn.addEventListener('click', function() {
+            nodesTab.classList.remove('hidden');
+            edgesTab.classList.add('hidden');
+            jsonTab.classList.add('hidden');
+            nodesTabBtn.classList.add('text-indigo-600', 'bg-indigo-50');
+            nodesTabBtn.classList.remove('text-gray-600');
+            edgesTabBtn.classList.remove('text-indigo-600', 'bg-indigo-50');
+            edgesTabBtn.classList.add('text-gray-600');
+            jsonTabBtn.classList.remove('text-indigo-600', 'bg-indigo-50');
+            jsonTabBtn.classList.add('text-gray-600');
+        });
+
+        edgesTabBtn.addEventListener('click', function() {
+            nodesTab.classList.add('hidden');
+            edgesTab.classList.remove('hidden');
+            jsonTab.classList.add('hidden');
+            nodesTabBtn.classList.remove('text-indigo-600', 'bg-indigo-50');
+            nodesTabBtn.classList.add('text-gray-600');
+            edgesTabBtn.classList.add('text-indigo-600', 'bg-indigo-50');
+            edgesTabBtn.classList.remove('text-gray-600');
+            jsonTabBtn.classList.remove('text-indigo-600', 'bg-indigo-50');
+            jsonTabBtn.classList.add('text-gray-600');
+        });
+
+        jsonTabBtn.addEventListener('click', function() {
+            nodesTab.classList.add('hidden');
+            edgesTab.classList.add('hidden');
+            jsonTab.classList.remove('hidden');
+            nodesTabBtn.classList.remove('text-indigo-600', 'bg-indigo-50');
+            nodesTabBtn.classList.add('text-gray-600');
+            edgesTabBtn.classList.remove('text-indigo-600', 'bg-indigo-50');
+            edgesTabBtn.classList.add('text-gray-600');
+            jsonTabBtn.classList.add('text-indigo-600', 'bg-indigo-50');
+            jsonTabBtn.classList.remove('text-gray-600');
+
+            // Update JSON editor with current graph data
+            document.getElementById('jsonEditor').value = JSON.stringify(graphData, null, 2);
+        });
+    </script>
+
+    <!-- Load the graph visualizer -->
+    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+    <script src="{{ url_for('static', path='js/graph.js') }}"></script>
+</body>
+</html>

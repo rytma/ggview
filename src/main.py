@@ -1,7 +1,7 @@
 from typing import Annotated, Dict, List, Optional
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi import FastAPI, Request, Depends, Query, HTTPException, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import pandas as pd
@@ -62,6 +62,93 @@ async def view_graph(request: Request, graph_id: int, session: SessionDep):
 
     return templates.TemplateResponse(
         request=request, name="view.html", context={"graph_id": graph_id, "graph_name": graph.name}
+    )
+
+@app.get("/edit/{graph_id}", response_class=HTMLResponse)
+async def edit_graph(request: Request, graph_id: int, session: SessionDep):
+    graph = session.get(Graph, graph_id)
+    if not graph:
+        raise HTTPException(status_code=404, detail="Graph not found")
+
+    return templates.TemplateResponse(
+        request=request, name="edit.html", context={"graph_id": graph_id, "graph_name": graph.name}
+    )
+
+@app.put("/api/graph/{graph_id}/update")
+async def update_graph(
+    graph_id: int,
+    session: SessionDep,
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    data: Optional[str] = Form(None)
+) -> Graph:
+    graph = session.get(Graph, graph_id)
+    if not graph:
+        raise HTTPException(status_code=404, detail="Graph not found")
+
+    graph_data = json.loads(data) if data else {"graph": {"nodes": {}, "edges": []}}
+
+    # Calculate node and edge counts
+    node_count = len(graph_data.get("graph", {}).get("nodes", {}))
+    edge_count = len(graph_data.get("graph", {}).get("edges", []))
+
+    # Update graph
+    graph.name = name
+    graph.description = description
+    graph.data = json.dumps(graph_data)
+    graph.node_count = node_count
+    graph.edge_count = edge_count
+
+    session.add(graph)
+    session.commit()
+    session.refresh(graph)
+    return graph
+
+@app.get("/api/graph/{graph_id}/download/json")
+async def download_graph_json(graph_id: int, session: SessionDep):
+    graph = session.get(Graph, graph_id)
+    if not graph:
+        raise HTTPException(status_code=404, detail="Graph not found")
+
+    # Return as downloadable file
+    return StreamingResponse(
+        io.StringIO(graph.data),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=graph_{graph_id}.json"}
+    )
+
+@app.get("/api/graph/{graph_id}/download/csv")
+async def download_graph_csv(graph_id: int, session: SessionDep):
+    graph = session.get(Graph, graph_id)
+    if not graph:
+        raise HTTPException(status_code=404, detail="Graph not found")
+
+    graph_data = json.loads(graph.data)
+
+    # Create a CSV representation of the graph
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow(["source", "target", "relation", "source_label", "target_label"])
+
+    # Write edges
+    for edge in graph_data["graph"]["edges"]:
+        source = edge["source"]
+        target = edge["target"]
+        relation = edge.get("relation", "relates_to")
+
+        source_label = graph_data["graph"]["nodes"].get(source, {}).get("label", source)
+        target_label = graph_data["graph"]["nodes"].get(target, {}).get("label", target)
+
+        writer.writerow([source, target, relation, source_label, target_label])
+
+    # Return as downloadable file
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=graph_{graph_id}.csv"}
     )
 
 @app.get("/graphs", response_class=HTMLResponse)
