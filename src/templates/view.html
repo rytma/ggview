@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Graph - {{ graph_name }}</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="text-xl font-bold">Graph Viz Framework</div>
+                <div class="space-x-4">
+                    <a href="/" class="hover:underline">Home</a>
+                    <a href="/graphs" class="hover:underline">Graphs</a>
+                    <a href="/upload" class="hover:underline">Upload</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800" id="graphTitle">Graph: {{ graph_name }}</h1>
+            <div class="space-x-2">
+                <button id="statsBtn" class="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm">
+                    View Stats
+                </button>
+                <a href="/graphs" class="px-3 py-1.5 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm inline-block">
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <!-- Control Bar -->
+        <div class="bg-white rounded-lg shadow-md p-3 mb-4 flex flex-wrap gap-4 items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-gray-700 text-sm">Layout:</span>
+                <select id="layoutSelector" class="px-2 py-1 border rounded-md text-sm">
+                    <option value="force">Force-Directed</option>
+                    <option value="circular">Circular</option>
+                    <option value="grid">Grid</option>
+                    <option value="tree">Hierarchical</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="text-gray-700 text-sm">Node Size:</span>
+                <input type="range" id="nodeSizeSlider" min="2" max="20" value="8" class="w-24">
+            </div>
+
+            <div class="flex items-center gap-2 ml-auto">
+                <button id="resetZoomBtn" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">
+                    Reset View
+                </button>
+
+                <button id="searchBtn" class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 text-sm">
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Search Panel (Hidden by default) -->
+        <div id="searchPanel" class="bg-white rounded-lg shadow-md p-3 mb-4 hidden">
+            <div class="flex gap-2 items-center">
+                <input type="text" id="searchInput" placeholder="Search nodes..."
+                       class="flex-grow px-3 py-1.5 border border-gray-300 rounded-md text-sm">
+                <button id="clearSearchBtn" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">
+                    Clear
+                </button>
+                <button id="closeSearchBtn" class="px-2 py-1.5 text-gray-500 hover:text-gray-700 text-sm">
+                    ✕
+                </button>
+            </div>
+            <div id="searchResults" class="mt-2 max-h-40 overflow-y-auto text-sm"></div>
+        </div>
+
+        <!-- Graph Container -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div class="lg:col-span-3">
+                <div id="graph-container" class="bg-white rounded-lg shadow-md" style="width: 100%; height: 60vh;"></div>
+            </div>
+
+            <div>
+                <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                    <h2 class="text-lg font-semibold mb-2">Node Details</h2>
+                    <div id="node-details" class="text-sm text-gray-600">
+                        <p class="italic">Click on a node to view details</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h2 class="text-lg font-semibold mb-2">Edge List</h2>
+                    <div id="edge-list" class="text-sm text-gray-600 max-h-60 overflow-y-auto">
+                        <p class="italic">Showing connections for selected node</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Modal -->
+        <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-10">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-lg font-bold">Graph Statistics</h3>
+                    <button id="closeStatsBtn" class="text-gray-500 hover:text-gray-700">✕</button>
+                </div>
+                <div class="p-6">
+                    <div id="statsContent" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tooltip -->
+    <div id="node-tooltip" class="fixed bg-white p-2 rounded-md shadow-md text-sm hidden z-20 border border-gray-200 max-w-xs"></div>
+
+    <script>
+        // Graph ID from template
+        const GRAPH_ID = {{ graph_id }};
+
+        // Fetch graph data on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch(`/api/graph/${GRAPH_ID}`);
+                if (!response.ok) throw new Error("Failed to fetch graph data");
+
+                const graph = await response.json();
+                const graphData = JSON.parse(graph.data);
+
+                // Initialize the graph visualizer
+                initGraphVisualizer(graphData);
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Failed to load graph data");
+            }
+        });
+
+        // Stats button
+        document.getElementById('statsBtn').addEventListener('click', async function() {
+            try {
+                const response = await fetch(`/api/graph/${GRAPH_ID}/stats`);
+                if (!response.ok) throw new Error("Failed to fetch stats");
+
+                const stats = await response.json();
+
+                // Populate stats content
+                const statsContent = document.getElementById('statsContent');
+                statsContent.innerHTML = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-3 rounded">
+                            <p class="text-sm text-gray-500">Nodes</p>
+                            <p class="text-xl font-bold">${stats.node_count}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded">
+                            <p class="text-sm text-gray-500">Edges</p>
+                            <p class="text-xl font-bold">${stats.edge_count}</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Density</span>
+                            <span class="font-medium">${stats.density.toFixed(4)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Connected</span>
+                            <span class="font-medium">${stats.is_connected ? "Yes" : "No"}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Avg. In-Degree</span>
+                            <span class="font-medium">${stats.avg_in_degree.toFixed(2)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Avg. Out-Degree</span>
+                            <span class="font-medium">${stats.avg_out_degree.toFixed(2)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Diameter</span>
+                            <span class="font-medium">${stats.diameter}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Avg. Clustering</span>
+                            <span class="font-medium">${stats.avg_clustering}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Show modal
+                document.getElementById('statsModal').classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Failed to load graph statistics");
+            }
+        });
+
+        // Close stats modal
+        document.getElementById('closeStatsBtn').addEventListener('click', function() {
+            document.getElementById('statsModal').classList.add('hidden');
+        });
+
+        // Search button
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            document.getElementById('searchPanel').classList.toggle('hidden');
+            if (!document.getElementById('searchPanel').classList.contains('hidden')) {
+                document.getElementById('searchInput').focus();
+            }
+        });
+
+        document.getElementById('closeSearchBtn').addEventListener('click', function() {
+            document.getElementById('searchPanel').classList.add('hidden');
+        });
+    </script>
+
+    <!-- Load the graph visualizer -->
+    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+    <script src="{{ url_for('static', path='js/graph.js') }}"></script>
+</body>
+</html>

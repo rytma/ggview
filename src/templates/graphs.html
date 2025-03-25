@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph List - Graph Viz Framework</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="text-xl font-bold">Graph Viz Framework</div>
+                <div class="space-x-4">
+                    <a href="/" class="hover:underline">Home</a>
+                    <a href="/graphs" class="hover:underline font-medium">Graphs</a>
+                    <a href="/upload" class="hover:underline">Upload</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Saved Graphs</h1>
+            <a href="/upload" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                Upload New Graph
+            </a>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div class="flex-grow">
+                    <input type="text" id="searchInput" placeholder="Search graphs..."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-700">Sort by:</span>
+                    <select id="sortSelector" class="px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="name">Name</option>
+                        <option value="created_at" selected>Date Created</option>
+                        <option value="node_count">Node Count</option>
+                        <option value="edge_count">Edge Count</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graph List -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="min-w-full divide-y divide-gray-200">
+                <div class="bg-gray-50">
+                    <div class="grid grid-cols-12 gap-2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div class="col-span-4">Name</div>
+                        <div class="col-span-3">Created</div>
+                        <div class="col-span-1 text-center">Nodes</div>
+                        <div class="col-span-1 text-center">Edges</div>
+                        <div class="col-span-3 text-right">Actions</div>
+                    </div>
+                </div>
+                <div id="graphList" class="bg-white divide-y divide-gray-200"></div>
+            </div>
+            <!-- Empty state -->
+            <div id="emptyState" class="hidden p-8 text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No graphs found</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by uploading a new graph.</p>
+                <div class="mt-6">
+                    <a href="/upload" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Upload Graph
+                    </a>
+                </div>
+            </div>
+            <!-- Loading state -->
+            <div id="loadingState" class="p-8 text-center">
+                <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">Loading graphs...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-10">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-red-600">Delete Graph</h3>
+            </div>
+            <div class="p-6">
+                <p class="mb-4">Are you sure you want to delete <span id="deleteGraphName" class="font-semibold"></span>? This action cannot be undone.</p>
+                <div class="flex justify-end gap-3">
+                    <button id="cancelDeleteBtn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let graphs = [];
+        let deleteGraphId = null;
+
+        // Fetch graphs on page load
+        document.addEventListener('DOMContentLoaded', fetchGraphs);
+
+        // Search input
+        document.getElementById('searchInput').addEventListener('input', filterGraphs);
+
+        // Sort selector
+        document.getElementById('sortSelector').addEventListener('change', function() {
+            sortGraphs(this.value);
+            renderGraphs();
+        });
+
+        // Delete modal buttons
+        document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        });
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', deleteGraph);
+
+        async function fetchGraphs() {
+            try {
+                const response = await fetch('/api/graphs');
+                if (!response.ok) throw new Error("Failed to fetch graphs");
+
+                graphs = await response.json();
+
+                document.getElementById('loadingState').classList.add('hidden');
+
+                if (graphs.length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                } else {
+                    sortGraphs('created_at');
+                    renderGraphs();
+                }
+
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('emptyState').classList.remove('hidden');
+                document.getElementById('emptyState').innerHTML = `
+                    <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Error loading graphs</h3>
+                    <p class="mt-1 text-sm text-gray-500">${error.message}</p>
+                `;
+            }
+        }
+
+        function renderGraphs() {
+            const graphList = document.getElementById('graphList');
+            graphList.innerHTML = '';
+
+            if (graphs.length === 0) {
+                document.getElementById('emptyState').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('emptyState').classList.add('hidden');
+
+            graphs.forEach(graph => {
+                const created = new Date(graph.created_at);
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-12 gap-2 px-6 py-4 hover:bg-gray-50';
+                row.innerHTML = `
+                    <div class="col-span-4">
+                        <div class="flex items-center">
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">${graph.name}</div>
+                                <div class="text-xs text-gray-500 truncate max-w-xs">${graph.description || 'No description'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-span-3">
+                        <div class="text-sm text-gray-900">${created.toLocaleDateString()}</div>
+                        <div class="text-xs text-gray-500">${created.toLocaleTimeString()}</div>
+                    </div>
+                    <div class="col-span-1 text-center">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            ${graph.node_count}
+                        </span>
+                    </div>
+                    <div class="col-span-1 text-center">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            ${graph.edge_count}
+                        </span>
+                    </div>
+                    <div class="col-span-3 text-right space-x-2">
+                        <a href="/view/${graph.id}" class="inline-block px-3 py-1 text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                            View
+                        </a>
+                        <button data-id="${graph.id}" data-name="${graph.name}" class="delete-btn inline-block px-3 py-1 text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                            Delete
+                        </button>
+                    </div>
+                `;
+                graphList.appendChild(row);
+            });
+
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const graphId = this.dataset.id;
+                    const graphName = this.dataset.name;
+
+                    deleteGraphId = graphId;
+                    document.getElementById('deleteGraphName').textContent = graphName;
+                    document.getElementById('deleteModal').classList.remove('hidden');
+                });
+            });
+        }
+
+        function filterGraphs() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            if (!searchTerm) {
+                sortGraphs(document.getElementById('sortSelector').value);
+                renderGraphs();
+                return;
+            }
+
+            const filtered = graphs.filter(graph => {
+                return graph.name.toLowerCase().includes(searchTerm) ||
+                       (graph.description && graph.description.toLowerCase().includes(searchTerm));
+            });
+
+            graphs = filtered;
+            renderGraphs();
+
+            // Restore original graphs after rendering
+            fetchGraphs();
+        }
+
+        function sortGraphs(field) {
+            graphs.sort((a, b) => {
+                if (field === 'created_at') {
+                    return new Date(b.created_at) - new Date(a.created_at);
+                } else if (field === 'name') {
+                    return a.name.localeCompare(b.name);
+                } else {
+                    return b[field] - a[field];
+                }
+            });
+        }
+
+        async function deleteGraph() {
+            if (!deleteGraphId) return;
+
+            try {
+                const response = await fetch(`/api/graph/${deleteGraphId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error("Failed to delete graph");
+
+                document.getElementById('deleteModal').classList.add('hidden');
+
+                // Refresh graph list
+                fetchGraphs();
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Failed to delete graph: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

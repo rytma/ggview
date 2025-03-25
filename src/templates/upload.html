@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Graph - Graph Viz Framework</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="text-xl font-bold">Graph Viz Framework</div>
+                <div class="space-x-4">
+                    <a href="/" class="hover:underline">Home</a>
+                    <a href="/graphs" class="hover:underline">Graphs</a>
+                    <a href="/upload" class="hover:underline font-medium">Upload</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-6 max-w-4xl">
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Upload Graph Data</h1>
+
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="border-b border-gray-200">
+                <nav class="flex -mb-px">
+                    <button id="jsonTabBtn" class="tab-btn active-tab px-4 py-3 text-center w-1/2 border-b-2 border-indigo-500 font-semibold text-indigo-600">JSON Upload</button>
+                    <button id="csvTabBtn" class="tab-btn px-4 py-3 text-center w-1/2 text-gray-500 hover:text-gray-700">CSV Upload</button>
+                </nav>
+            </div>
+
+            <div class="p-6">
+                <!-- JSON Upload Form -->
+                <div id="jsonUploadForm" class="tab-content">
+                    <form id="uploadJsonForm" class="space-y-4">
+                        <div>
+                            <label for="jsonName" class="block text-sm font-medium text-gray-700 mb-1">Graph Name</label>
+                            <input type="text" id="jsonName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+
+                        <div>
+                            <label for="jsonDescription" class="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+                            <textarea id="jsonDescription" name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                        </div>
+
+                        <div>
+                            <label for="jsonFile" class="block text-sm font-medium text-gray-700 mb-1">JSON File (JGF Format)</label>
+                            <input type="file" id="jsonFile" name="file" accept=".json" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+                            <p class="mt-1 text-xs text-gray-500">Expected format: JSON Graph Format (JGF) with nodes and edges</p>
+                        </div>
+
+                        <button type="submit" class="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                            Upload JSON Graph
+                        </button>
+                    </form>
+                </div>
+
+                <!-- CSV Upload Form -->
+                <div id="csvUploadForm" class="tab-content hidden">
+                    <form id="uploadCsvForm" class="space-y-4">
+                        <div>
+                            <label for="csvName" class="block text-sm font-medium text-gray-700 mb-1">Graph Name</label>
+                            <input type="text" id="csvName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+
+                        <div>
+                            <label for="csvDescription" class="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+                            <textarea id="csvDescription" name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                        </div>
+
+                        <div>
+                            <label for="csvFile" class="block text-sm font-medium text-gray-700 mb-1">CSV File</label>
+                            <input type="file" id="csvFile" name="file" accept=".csv" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+                        </div>
+
+                        <div id="csvColumnsContainer" class="hidden border rounded-md p-4 bg-gray-50">
+                            <h3 class="font-medium mb-3">CSV Column Mapping</h3>
+                            <div id="previewColumns" class="text-xs bg-white p-2 rounded border mb-3 overflow-x-auto"></div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="nodeIdCol" class="block text-sm font-medium text-gray-700 mb-1">Node ID Column*</label>
+                                    <select id="nodeIdCol" name="node_id_col" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="">Select column</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="nodeLabelCol" class="block text-sm font-medium text-gray-700 mb-1">Node Label Column</label>
+                                    <select id="nodeLabelCol" name="node_label_col" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="">Same as ID</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="sourceCol" class="block text-sm font-medium text-gray-700 mb-1">Source Column*</label>
+                                    <select id="sourceCol" name="source_col" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="">Select column</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="targetCol" class="block text-sm font-medium text-gray-700 mb-1">Target Column*</label>
+                                    <select id="targetCol" name="target_col" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="">Select column</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="relationCol" class="block text-sm font-medium text-gray-700 mb-1">Relation Column</label>
+                                    <select id="relationCol" name="relation_col" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="">Default relation</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                            Upload CSV Graph
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Alert -->
+        <div id="uploadStatus" class="mt-6 p-4 rounded-md hidden"></div>
+    </main>
+
+    <script>
+        // Tab switching
+        document.getElementById('jsonTabBtn').addEventListener('click', () => switchTab('json'));
+        document.getElementById('csvTabBtn').addEventListener('click', () => switchTab('csv'));
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab', 'border-indigo-500', 'text-indigo-600', 'font-semibold'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.add('text-gray-500', 'hover:text-gray-700'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+
+            if (tab === 'json') {
+                document.getElementById('jsonTabBtn').classList.add('active-tab', 'border-indigo-500', 'text-indigo-600', 'font-semibold');
+                document.getElementById('jsonUploadForm').classList.remove('hidden');
+            } else {
+                document.getElementById('csvTabBtn').classList.add('active-tab', 'border-indigo-500', 'text-indigo-600', 'font-semibold');
+                document.getElementById('csvUploadForm').classList.remove('hidden');
+            }
+        }
+
+        // CSV file handling
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const csvData = e.target.result;
+                    const lines = csvData.split('\n');
+                    if (lines.length > 0) {
+                        const headers = lines[0].split(',').map(h => h.trim());
+                        populateColumnSelectors(headers);
+
+                        // Show preview of columns
+                        const previewEl = document.getElementById('previewColumns');
+                        previewEl.innerHTML = `<strong>Detected columns:</strong> ${headers.join(', ')}`;
+
+                        // Show column mapping
+                        document.getElementById('csvColumnsContainer').classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error parsing CSV:', error);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function populateColumnSelectors(headers) {
+            const selectors = ['nodeIdCol', 'nodeLabelCol', 'sourceCol', 'targetCol', 'relationCol'];
+
+            selectors.forEach(selector => {
+                const el = document.getElementById(selector);
+                const currentValue = el.value;
+
+                // Clear options except first
+                while (el.options.length > 1) {
+                    el.remove(1);
+                }
+
+                // Add options
+                headers.forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.text = header;
+                    el.add(option);
+
+                    // Auto-select columns based on common names
+                    if (selector === 'nodeIdCol' && 
+                       (header.toLowerCase().includes('id') || header.toLowerCase() === 'name')) {
+                        el.value = header;
+                    } else if (selector === 'nodeLabelCol' &&
+                              (header.toLowerCase().includes('label') || header.toLowerCase().includes('name'))) {
+                        el.value = header;
+                    } else if (selector === 'sourceCol' &&
+                              (header.toLowerCase().includes('source') || header.toLowerCase().includes('from'))) {
+                        el.value = header;
+                    } else if (selector === 'targetCol' &&
+                              (header.toLowerCase().includes('target') || header.toLowerCase().includes('to'))) {
+                        el.value = header;
+                    } else if (selector === 'relationCol' &&
+                              (header.toLowerCase().includes('relation') || header.toLowerCase().includes('type') ||
+                               header.toLowerCase().includes('label'))) {
+                        el.value = header;
+                    }
+                });
+            });
+        }
+
+        // Form submissions
+        document.getElementById('uploadJsonForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch('/api/upload/json', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    showStatus(`Graph uploaded successfully! <a href="/view/${result.id}" class="underline text-blue-600">View Graph</a>`, 'success');
+                    this.reset();
+                } else {
+                    showStatus(`Error: ${result.detail}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('uploadCsvForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch('/api/upload/csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    showStatus(`Graph uploaded successfully! <a href="/view/${result.id}" class="underline text-blue-600">View Graph</a>`, 'success');
+                    this.reset();
+                    document.getElementById('csvColumnsContainer').classList.add('hidden');
+                } else {
+                    showStatus(`Error: ${result.detail}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('uploadStatus');
+            statusEl.innerHTML = message;
+            statusEl.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+
+            if (type === 'success') {
+                statusEl.classList.add('bg-green-100', 'text-green-800');
+            } else {
+                statusEl.classList.add('bg-red-100', 'text-red-800');
+            }
+        }
+    </script>
+</body>
+</html>
